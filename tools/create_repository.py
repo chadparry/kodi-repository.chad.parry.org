@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""
+r"""
 Create a Kodi add-on repository from GitHub sources
 
 This tool extracts Kodi add-ons from their respective Git repositories and
@@ -22,12 +22,12 @@ if it is only "."), or else the URL's colon will be interpreted as the
 delimiter.
 
 As an example, here is the command that generates Chad Parry's Repository:
-    ./create_repository.py \\
-        --target=html/software/kodi/ \\
-        --addon=https://github.com/chadparry/\\
-kodi-repository.chad.parry.org.git:repository.chad.parry.org \\
-        --addon=https://github.com/chadparry/\\
-kodi-plugin.program.remote.control.browser.git\\
+    ./create_repository.py \
+        --target=html/software/kodi/ \
+        --addon=https://github.com/chadparry/\
+kodi-repository.chad.parry.org.git:repository.chad.parry.org \
+        --addon=https://github.com/chadparry/\
+kodi-plugin.program.remote.control.browser.git\
 :plugin.program.remote.control.browser
 """
  
@@ -52,7 +52,7 @@ AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
 def fetch_addon(addon, working_folder):
-    match = re.match(r'(.*?)(?:#([^#]*?))?(?::([^:]*))?$', addon)
+    match = re.match('(.*?)(?:#([^#]*?))?(?::([^:]*))?$', addon)
     (clone_repo, clone_branch, clone_path) = match.group(1, 2, 3)
     clone_folder = tempfile.mkdtemp('repo-')
     try:
