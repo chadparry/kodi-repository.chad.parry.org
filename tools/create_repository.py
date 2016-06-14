@@ -12,22 +12,22 @@ Each add-on location is specified with a URL using the format:
   REPOSITORY_URL#BRANCH:PATH
 The first segment is the Git URL that would be used to clone the repository,
 (e.g., "https://github.com/chadparry/kodi-repository.chad.parry.org.git"). That
-is followed by an optional "#" sign and a branch name, (e.g. "release-1.0"). If
-no branch name is specified, then the default is the cloned repository's
-currently active branch, which is the same behavior as git-clone. Next comes an
-optional ":" sign and path. The path denotes the location of the add-on within
-the repository. If no path is specified, then the default is ".". If the Git
-URL contains a colon, (which is likely), then a path must be specified, (even
-if it is only "."), or else the URL's colon will be interpreted as the
-delimiter.
+is followed by an optional "#" sign and a branch or tag name, (e.g.
+"release-1.0"). If no branch name is specified, then the default is the cloned
+repository's currently active branch, which is the same behavior as git-clone.
+Next comes an optional ":" sign and path. The path denotes the location of the
+add-on within the repository. If no path is specified, then the default is ".".
+If the Git URL contains a colon, (which is likely), then a path must be
+specified, (even if it is only "."), or else the URL's colon will be
+interpreted as the delimiter.
 
 As an example, here is the command that generates Chad Parry's Repository:
     ./create_repository.py \
         --target=html/software/kodi/ \
         --addon=https://github.com/chadparry/\
-kodi-repository.chad.parry.org.git:repository.chad.parry.org \
+kodi-repository.chad.parry.org.git#release-latest:repository.chad.parry.org \
         --addon=https://github.com/chadparry/\
-kodi-plugin.program.remote.control.browser.git\
+kodi-plugin.program.remote.control.browser.git#release-latest\
 :plugin.program.remote.control.browser
 """
  
@@ -58,11 +58,7 @@ def fetch_addon(addon, working_folder):
     try:
         cloned = git.Repo.clone_from(clone_repo, clone_folder)
         if clone_branch is not None:
-            try:
-                head = cloned.heads[clone_branch]
-            except IndexError:
-                raise RuntimeError('Unrecognized branch: ' + clone_branch)
-            head.checkout()
+            cloned.git.checkout(clone_branch)
         clone_source = os.path.join(clone_folder, clone_path or '.')
 
         metadata_path = os.path.join(clone_source, 'addon.xml')
