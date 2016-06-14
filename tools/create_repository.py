@@ -1,5 +1,35 @@
 #!/usr/bin/env python
-"""Create a Kodi add-on repository from GitHub sources"""
+"""
+Create a Kodi add-on repository from GitHub sources
+
+This tool extracts Kodi add-ons from their respective Git repositories and
+copies the appropriate files into a Kodi add-on repository. Each add-on is
+in its own directory. Each contains the add-on metadata files and a zip
+archive. In addition, the repository catalog "addons.xml" is placed in the
+repository folder.
+
+Each add-on location is specified with a URL using the format:
+  REPOSITORY_URL#BRANCH:PATH
+The first segment is the Git URL that would be used to clone the repository,
+(e.g., "https://github.com/chadparry/kodi-repository.chad.parry.org.git"). That
+is followed by an optional "#" sign and a branch name, (e.g. "release-1.0"). If
+no branch name is specified, then the default is the cloned repository's
+currently active branch, which is the same behavior as git-clone. Next comes an
+optional ":" sign and path. The path denotes the location of the add-on within
+the repository. If no path is specified, then the default is ".". If the Git
+URL contains a colon, (which is likely), then a path must be specified, (even
+if it is only "."), or else the URL's colon will be interpreted as the
+delimiter.
+
+As an example, here is the command that generates Chad Parry's Repository:
+    ./create_repository.py \\
+        --target=html/software/kodi/ \\
+        --addon=https://github.com/chadparry/\\
+kodi-repository.chad.parry.org.git:repository.chad.parry.org \\
+        --addon=https://github.com/chadparry/\\
+kodi-plugin.program.remote.control.browser.git\\
+:plugin.program.remote.control.browser
+"""
  
 import addons_xml_generator
 import argparse
@@ -22,12 +52,18 @@ AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
 def fetch_addon(addon, working_folder):
-    segments = addon.split(':')
-    (clone_repo, clone_path) = (':'.join(segments[:-1]), segments[-1])
+    match = re.match(r'(.*?)(?:#([^#]*?))?(?::([^:]*))?$', addon)
+    (clone_repo, clone_branch, clone_path) = match.group(1, 2, 3)
     clone_folder = tempfile.mkdtemp('repo-')
     try:
         cloned = git.Repo.clone_from(clone_repo, clone_folder)
-        clone_source = os.path.join(clone_folder, clone_path)
+        if clone_branch is not None:
+            try:
+                head = cloned.heads[clone_branch]
+            except IndexError:
+                raise RuntimeError('Unrecognized branch: ' + clone_branch)
+            head.checkout()
+        clone_source = os.path.join(clone_folder, clone_path or '.')
 
         metadata_path = os.path.join(clone_source, 'addon.xml')
         tree = xml.etree.ElementTree.parse(metadata_path)
@@ -110,9 +146,10 @@ def create_repository(addons, target_folder):
 
         metadata = []
         for worker in workers:
-            if not worker.result_slot:
+            try:
+                result = next(iter(worker.result_slot))
+            except StopIteration:
                 raise RuntimeError('Addon worker did not report result')
-            result = next(iter(worker.result_slot))
             if result.exc_info is not None:
                 raise result.exc_info[1]
             metadata.append(result.addon_metadata)
@@ -142,9 +179,7 @@ def main():
     parser.add_argument(
             '--target', required=True, help='Path to create the repository')
     parser.add_argument(
-            '--addon',
-            action='append',
-            help='Repository URL then colon then path within the repository')
+            '--addon', action='append', help='REPOSITORY_URL#BRANCH:PATH')
     args = parser.parse_args()
 
     create_repository(args.addon, args.target)
