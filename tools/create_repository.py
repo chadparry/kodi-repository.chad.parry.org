@@ -16,8 +16,8 @@ import zipfile
  
 
 AddonMetadata = collections.namedtuple('AddonMetadata', ('id', 'version'))
-WorkerResult = collections.namedtuple('WorkerResult',
-        ('addon_metadata', 'exc_info'))
+WorkerResult = collections.namedtuple(
+        'WorkerResult', ('addon_metadata', 'exc_info'))
 AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
@@ -62,21 +62,33 @@ def copy_addon(addon_metadata, source_folder, target_folder):
     target_addon_folder = os.path.join(target_folder, addon_metadata.id)
     if not os.path.isdir(target_addon_folder):
         os.mkdir(target_addon_folder)
-    for basename in ('addon.xml', 'changelog.txt', 'icon.png', 'fanart.jpg',
+    for basename in (
+            'addon.xml',
+            'changelog.txt',
+            'icon.png',
+            'fanart.jpg',
             'LICENSE.txt'):
         source_path = os.path.join(source_addon_folder, basename)
         if os.path.isfile(source_path):
-            shutil.copyfile(source_path,
+            shutil.copyfile(
+                    source_path,
                     os.path.join(target_addon_folder, basename))
 
-    with zipfile.ZipFile(os.path.join(target_addon_folder,
-            '{}-{}.zip'.format(addon_metadata.id, addon_metadata.version)),
-            'w', zipfile.ZIP_DEFLATED) as archive:
+    with zipfile.ZipFile(
+            os.path.join(
+                    target_addon_folder,
+                    '{}-{}.zip'.format(
+                            addon_metadata.id,
+                            addon_metadata.version)),
+            'w',
+            zipfile.ZIP_DEFLATED) as archive:
         for (root, dirs, files) in os.walk(source_addon_folder):
-            relative_root = os.path.join(addon_metadata.id,
+            relative_root = os.path.join(
+                    addon_metadata.id,
                     os.path.relpath(root, source_addon_folder))
             for relative_path in files:
-                archive.write(os.path.join(root, relative_path),
+                archive.write(
+                        os.path.join(root, relative_path),
                         os.path.join(relative_root, relative_path))
 
 
@@ -115,7 +127,8 @@ def create_repository(addons, target_folder):
         if not os.path.isdir(target_folder):
             os.makedirs(target_folder)
         for basename in ('addons.xml', 'addons.xml.md5'):
-            shutil.copyfile(os.path.join(working_folder, basename),
+            shutil.copyfile(
+                    os.path.join(working_folder, basename),
                     os.path.join(target_folder, basename))
         for addon_metadata in metadata:
             copy_addon(addon_metadata, working_folder, target_folder)
@@ -126,8 +139,11 @@ def create_repository(addons, target_folder):
 def main():
     parser = argparse.ArgumentParser(
             description='Create a Kodi add-on repository from GitHub sources')
-    parser.add_argument('--target', help='Path to create the repository')
-    parser.add_argument('--addon', action='append',
+    parser.add_argument(
+            '--target', required=True, help='Path to create the repository')
+    parser.add_argument(
+            '--addon',
+            action='append',
             help='Repository URL then colon then path within the repository')
     args = parser.parse_args()
 
