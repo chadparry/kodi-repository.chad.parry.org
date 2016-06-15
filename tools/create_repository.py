@@ -8,7 +8,8 @@ in its own directory. Each contains the add-on metadata files and a zip
 archive. In addition, the repository catalog "addons.xml" is placed in the
 repository folder.
 
-Each add-on location is specified with a URL using the format:
+Each add-on location is either a local path or a URL. If it is a URL, it
+should be to a Git repository and it should use the format:
   REPOSITORY_URL#BRANCH:PATH
 The first segment is the Git URL that would be used to clone the repository,
 (e.g., "https://github.com/chadparry/kodi-repository.chad.parry.org.git"). That
@@ -40,13 +41,9 @@ import shutil
 import sys
 import tempfile
 import threading
+import urlparse
 import xml.etree.ElementTree
-
-
-try:
-    import git
-except ImportError:
-    raise RuntimeError('Please install GitPython: pip install gitpython')
+import zipfile
 
 
 AddonMetadata = collections.namedtuple(
@@ -56,12 +53,47 @@ WorkerResult = collections.namedtuple(
 AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
-def fetch_addon(addon, target_folder):
+def parse_metadata(source_folder):
+    # Parse the addon.xml metadata.
+    metadata_path = os.path.join(source_folder, 'addon.xml')
+    tree = xml.etree.ElementTree.parse(metadata_path)
+    root = tree.getroot()
+    addon_metadata = AddonMetadata(
+            root.get('id'),
+            root.get('version'),
+            root)
+    # Validate the add-on ID.
+    if (addon_metadata.id is None or
+            re.search('[^a-z0-9._-]', addon_metadata.id)):
+        raise RuntimeError('Invalid addon ID: ' + str(addon_metadata.id))
+    if (addon_metadata.version is None or
+            not re.match(r'\d+\.\d+\.\d+', addon_metadata.version)):
+        raise RuntimeError('Invalid addon verson: ' +
+                str(addon_metadata.version))
+
+    return addon_metadata
+
+
+def copy_metadata_files(source_folder, addon_target_folder):
+    for basename in (
+            'addon.xml',
+            'changelog.txt',
+            'icon.png',
+            'fanart.jpg',
+            'LICENSE.txt'):
+        source_path = os.path.join(source_folder, basename)
+        if os.path.isfile(source_path):
+            shutil.copyfile(
+                    source_path,
+                    os.path.join(addon_target_folder, basename))
+
+
+def fetch_addon_from_git(addon_location, target_folder):
     # Parse the format "REPOSITORY_URL#BRANCH:PATH". The colon is a delimiter
     # unless it looks more like a scheme, (e.g., "http://").
     match = re.match(
             '((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
-            addon)
+            addon_location)
     (clone_repo, clone_branch, clone_path) = match.group(1, 2, 3)
 
     # Create a temporary folder for the git clone.
@@ -73,25 +105,10 @@ def fetch_addon(addon, target_folder):
             cloned.git.checkout(clone_branch)
         clone_source_folder = os.path.join(clone_folder, clone_path or '.')
 
-        # Parse the addon.xml metadata.
-        metadata_path = os.path.join(clone_source_folder, 'addon.xml')
-        tree = xml.etree.ElementTree.parse(metadata_path)
-        root = tree.getroot()
-        addon_metadata = AddonMetadata(
-                root.get('id'),
-                root.get('version'),
-                root)
-        # Validate the add-on ID.
-        if (addon_metadata.id is None or
-                re.search('[^a-z0-9._-]', addon_metadata.id)):
-            raise RuntimeError('Invalid addon ID: ' + str(addon_metadata.id))
-        if (addon_metadata.version is None or
-                not re.match(r'\d+\.\d+\.\d+', addon_metadata.version)):
-            raise RuntimeError('Invalid addon verson: ' +
-                    str(addon_metadata.version))
+        addon_metadata = parse_metadata(clone_source_folder)
+        addon_target_folder = os.path.join(target_folder, addon_metadata.id)
 
         # Create the compressed add-on archive.
-        addon_target_folder = os.path.join(target_folder, addon_metadata.id)
         if not os.path.isdir(addon_target_folder):
             os.mkdir(addon_target_folder)
         archive_path = os.path.join(
@@ -106,46 +123,86 @@ def fetch_addon(addon, target_folder):
                     prefix='{}/'.format(addon_metadata.id),
                     format='zip')
 
-        # Copy all the add-on metadata files.
-        for basename in (
-                'addon.xml',
-                'changelog.txt',
-                'icon.png',
-                'fanart.jpg',
-                'LICENSE.txt'):
-            source_path = os.path.join(clone_source_folder, basename)
-            if os.path.isfile(source_path):
-                shutil.copyfile(
-                        source_path,
-                        os.path.join(addon_target_folder, basename))
+        copy_metadata_files(clone_source_folder, addon_target_folder)
 
         return addon_metadata
     finally:
         shutil.rmtree(clone_folder, ignore_errors=False)
 
 
-def fetch_addon_worker(addon, target_folder, result_slot):
+def fetch_addon_from_filesystem(addon_location, target_folder):
+    addon_metadata = parse_metadata(addon_location)
+    addon_target_folder = os.path.join(target_folder, addon_metadata.id)
+
+    # Create the compressed add-on archive.
+    if not os.path.isdir(addon_target_folder):
+        os.mkdir(addon_target_folder)
+    with zipfile.ZipFile(
+            os.path.join(
+                    addon_target_folder,
+                    '{}-{}.zip'.format(
+                            addon_metadata.id,
+                            addon_metadata.version)),
+            'w',
+            zipfile.ZIP_DEFLATED) as archive:
+        for (root, dirs, files) in os.walk(addon_location):
+            relative_root = os.path.join(
+                    addon_metadata.id,
+                    os.path.relpath(root, addon_location))
+            for relative_path in files:
+                archive.write(
+                        os.path.join(root, relative_path),
+                        os.path.join(relative_root, relative_path))
+
+    if not os.path.samefile(addon_location, addon_target_folder):
+        copy_metadata_files(addon_location, addon_target_folder)
+
+    return addon_metadata
+
+
+def fetch_addon(addon_location, target_folder):
+    # Distinguish a local path from a Git URL.
+    if urlparse.urlparse(addon_location).scheme:
+        addon_metadata = fetch_addon_from_git(addon_location, target_folder)
+    else:
+        addon_metadata = fetch_addon_from_filesystem(
+                addon_location, target_folder)
+    return addon_metadata
+
+
+def fetch_addon_worker(addon_location, target_folder, result_slot):
     try:
-        addon_metadata = fetch_addon(addon, target_folder)
+        addon_metadata = fetch_addon(addon_location, target_folder)
         result_slot.append(WorkerResult(addon_metadata, None))
     except:
         result_slot.append(WorkerResult(None, sys.exc_info()))
 
 
-def get_addon_worker(addon, target_folder):
+def get_addon_worker(addon_location, target_folder):
     result_slot = []
     thread = threading.Thread(target=lambda: fetch_addon_worker(
-            addon, target_folder, result_slot))
+            addon_location, target_folder, result_slot))
     return AddonWorker(thread, result_slot)
 
 
-def create_repository(addons, target_folder):
+def create_repository(addon_locations, target_folder):
+    # Import git lazily.
+    if any(urlparse.urlparse(addon_location).scheme
+            for addon_location in addon_locations):
+        try:
+            global git
+            import git
+        except ImportError:
+            raise RuntimeError(
+                    'Please install GitPython: pip install gitpython')
+
     # Create the target folder.
     if not os.path.isdir(target_folder):
         os.makedirs(target_folder)
 
     # Fetch all the add-on sources in parallel.
-    workers = [get_addon_worker(addon, target_folder) for addon in addons]
+    workers = [get_addon_worker(addon_location, target_folder)
+            for addon_location in addon_locations]
     for worker in workers:
         worker.thread.start()
     for worker in workers:
@@ -186,8 +243,10 @@ def main():
             '--addon',
             action='append',
             default=[],
-            metavar='REPOSITORY_URL#BRANCH:PATH',
-            help='Path to find the add-on')
+            metavar='LOCATION',
+            help='''Location of the add-on: either a path to a local folder or
+                    a URL for a Git repository with the format
+                    REPOSITORY_URL#BRANCH:PATH''')
     args = parser.parse_args()
 
     create_repository(args.addon, args.target)
