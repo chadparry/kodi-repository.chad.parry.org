@@ -28,10 +28,10 @@ kodi-plugin.program.remote.control.browser.git#release-latest\
 :plugin.program.remote.control.browser
 """
  
-import addons_xml_generator
 import argparse
 import collections
 import git
+import hashlib
 import os
 import re
 import shutil
@@ -39,33 +39,41 @@ import sys
 import tempfile
 import threading
 import xml.etree.ElementTree
-import zipfile
  
 
-AddonMetadata = collections.namedtuple('AddonMetadata', ('id', 'version'))
+AddonMetadata = collections.namedtuple(
+        'AddonMetadata', ('id', 'version', 'root'))
 WorkerResult = collections.namedtuple(
         'WorkerResult', ('addon_metadata', 'exc_info'))
 AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
-def fetch_addon(addon, working_folder):
+def fetch_addon(addon, target_folder):
+    # Parse the format "REPOSITORY_URL#BRANCH:PATH". The colon is a delimiter
+    # unless it looks more like a scheme, (e.g., "http://").
     match = re.match(
-            # Parse the format "REPOSITORY_URL#BRANCH:PATH". The colon is a
-            # delimiter unless it looks more like a scheme, (e.g., "http://").
             '((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
             addon)
     (clone_repo, clone_branch, clone_path) = match.group(1, 2, 3)
+
+    # Create a temporary folder for the git clone.
     clone_folder = tempfile.mkdtemp('repo-')
     try:
+        # Check out the sources.
         cloned = git.Repo.clone_from(clone_repo, clone_folder)
         if clone_branch is not None:
             cloned.git.checkout(clone_branch)
-        clone_source = os.path.join(clone_folder, clone_path or '.')
+        clone_source_folder = os.path.join(clone_folder, clone_path or '.')
 
-        metadata_path = os.path.join(clone_source, 'addon.xml')
+        # Parse the addon.xml metadata.
+        metadata_path = os.path.join(clone_source_folder, 'addon.xml')
         tree = xml.etree.ElementTree.parse(metadata_path)
         root = tree.getroot()
-        addon_metadata = AddonMetadata(root.get('id'), root.get('version'))
+        addon_metadata = AddonMetadata(
+                root.get('id'),
+                root.get('version'),
+                root)
+        # Validate the add-on ID.
         if (addon_metadata.id is None or
                 re.search('[^a-z0-9._-]', addon_metadata.id)):
             raise RuntimeError('Invalid addon ID: ' + str(addon_metadata.id))
@@ -74,100 +82,91 @@ def fetch_addon(addon, working_folder):
             raise RuntimeError('Invalid addon verson: ' +
                     str(addon_metadata.version))
 
-        clone_target = os.path.join(working_folder, addon_metadata.id)
-        shutil.copytree(clone_source, clone_target)
+        # Create the compressed add-on archive.
+        addon_target_folder = os.path.join(target_folder, addon_metadata.id)
+        if not os.path.isdir(addon_target_folder):
+            os.mkdir(addon_target_folder)
+        archive_path = os.path.join(
+                addon_target_folder,
+                '{}-{}.zip'.format(
+                        addon_metadata.id,
+                        addon_metadata.version))
+        with open(archive_path, 'wb') as archive:
+            cloned.archive(
+                    archive,
+                    treeish='HEAD:{}'.format(clone_path),
+                    prefix='{}/'.format(addon_metadata.id),
+                    format='zip')
+
+        # Copy all the add-on metadata files.
+        for basename in (
+                'addon.xml',
+                'changelog.txt',
+                'icon.png',
+                'fanart.jpg',
+                'LICENSE.txt'):
+            source_path = os.path.join(clone_source_folder, basename)
+            if os.path.isfile(source_path):
+                shutil.copyfile(
+                        source_path,
+                        os.path.join(addon_target_folder, basename))
 
         return addon_metadata
     finally:
         shutil.rmtree(clone_folder, ignore_errors=False)
 
 
-def fetch_addon_worker(addon, working_folder, result_slot):
+def fetch_addon_worker(addon, target_folder, result_slot):
     try:
-        addon_metadata = fetch_addon(addon, working_folder)
+        addon_metadata = fetch_addon(addon, target_folder)
         result_slot.append(WorkerResult(addon_metadata, None))
     except:
         result_slot.append(WorkerResult(None, sys.exc_info()))
 
 
-def copy_addon(addon_metadata, source_folder, target_folder):
-    source_addon_folder = os.path.join(source_folder, addon_metadata.id)
-    target_addon_folder = os.path.join(target_folder, addon_metadata.id)
-    if not os.path.isdir(target_addon_folder):
-        os.mkdir(target_addon_folder)
-    for basename in (
-            'addon.xml',
-            'changelog.txt',
-            'icon.png',
-            'fanart.jpg',
-            'LICENSE.txt'):
-        source_path = os.path.join(source_addon_folder, basename)
-        if os.path.isfile(source_path):
-            shutil.copyfile(
-                    source_path,
-                    os.path.join(target_addon_folder, basename))
-
-    with zipfile.ZipFile(
-            os.path.join(
-                    target_addon_folder,
-                    '{}-{}.zip'.format(
-                            addon_metadata.id,
-                            addon_metadata.version)),
-            'w',
-            zipfile.ZIP_DEFLATED) as archive:
-        for (root, dirs, files) in os.walk(source_addon_folder):
-            relative_root = os.path.join(
-                    addon_metadata.id,
-                    os.path.relpath(root, source_addon_folder))
-            for relative_path in files:
-                archive.write(
-                        os.path.join(root, relative_path),
-                        os.path.join(relative_root, relative_path))
-
-
-def get_addon_worker(addon, working_folder):
+def get_addon_worker(addon, target_folder):
     result_slot = []
     thread = threading.Thread(target=lambda: fetch_addon_worker(
-            addon, working_folder, result_slot))
+            addon, target_folder, result_slot))
     return AddonWorker(thread, result_slot)
 
 
 def create_repository(addons, target_folder):
-    working_folder = tempfile.mkdtemp(prefix='repo-')
-    try:
-        workers = [get_addon_worker(addon, working_folder) for addon in addons]
-        for worker in workers:
-            worker.thread.start()
-        for worker in workers:
-            worker.thread.join()
+    # Create the target folder.
+    if not os.path.isdir(target_folder):
+        os.makedirs(target_folder)
 
-        metadata = []
-        for worker in workers:
-            try:
-                result = next(iter(worker.result_slot))
-            except StopIteration:
-                raise RuntimeError('Addon worker did not report result')
-            if result.exc_info is not None:
-                raise result.exc_info[1]
-            metadata.append(result.addon_metadata)
+    # Fetch all the add-on sources in parallel.
+    workers = [get_addon_worker(addon, target_folder) for addon in addons]
+    for worker in workers:
+        worker.thread.start()
+    for worker in workers:
+        worker.thread.join()
 
-        cwd = os.getcwd()
-        os.chdir(working_folder)
+    # Collect the results from all the threads.
+    metadata = []
+    for worker in workers:
         try:
-            addons_xml_generator.Generator()
-        finally:
-            os.chdir(cwd)
+            result = next(iter(worker.result_slot))
+        except StopIteration:
+            raise RuntimeError('Addon worker did not report result')
+        if result.exc_info is not None:
+            raise result.exc_info[1]
+        metadata.append(result.addon_metadata)
 
-        if not os.path.isdir(target_folder):
-            os.makedirs(target_folder)
-        for basename in ('addons.xml', 'addons.xml.md5'):
-            shutil.copyfile(
-                    os.path.join(working_folder, basename),
-                    os.path.join(target_folder, basename))
-        for addon_metadata in metadata:
-            copy_addon(addon_metadata, working_folder, target_folder)
-    finally:
-        shutil.rmtree(working_folder, ignore_errors=True)
+    # Generate the addons.xml file.
+    root = xml.etree.ElementTree.Element('addons')
+    for addon_metadata in metadata:
+        root.append(addon_metadata.root)
+    tree = xml.etree.ElementTree.ElementTree(root)
+    addons_path = os.path.join(target_folder, 'addons.xml')
+    tree.write(addons_path, encoding='utf-8', xml_declaration=True)
+
+    # Calculate the signature.
+    with open(addons_path, 'rb') as addons:
+        digest = hashlib.md5(addons.read()).hexdigest()
+    with open(os.path.join(target_folder, 'addons.xml.md5'), 'w') as sig:
+        sig.write(digest)
 
 
 def main():
@@ -176,7 +175,10 @@ def main():
     parser.add_argument(
             '--target', required=True, help='Path to create the repository')
     parser.add_argument(
-            '--addon', action='append', help='REPOSITORY_URL#BRANCH:PATH')
+            '--addon',
+            action='append',
+            default=[],
+            help='REPOSITORY_URL#BRANCH:PATH')
     args = parser.parse_args()
 
     create_repository(args.addon, args.target)
