@@ -17,9 +17,6 @@ is followed by an optional "#" sign and a branch or tag name, (e.g.
 repository's currently active branch, which is the same behavior as git-clone.
 Next comes an optional ":" sign and path. The path denotes the location of the
 add-on within the repository. If no path is specified, then the default is ".".
-If the Git URL contains a colon, (which is likely), then a path must be
-specified, (even if it is only "."), or else the URL's colon will be
-interpreted as the delimiter.
 
 As an example, here is the command that generates Chad Parry's Repository:
     ./create_repository.py \
@@ -52,7 +49,11 @@ AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
 def fetch_addon(addon, working_folder):
-    match = re.match('(.*?)(?:#([^#]*?))?(?::([^:]*))?$', addon)
+    match = re.match(
+            # Parse the format "REPOSITORY_URL#BRANCH:PATH". The colon is a
+            # delimiter unless it looks more like a scheme, (e.g., "http://").
+            '((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
+            addon)
     (clone_repo, clone_branch, clone_path) = match.group(1, 2, 3)
     clone_folder = tempfile.mkdtemp('repo-')
     try:
