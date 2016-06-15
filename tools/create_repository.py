@@ -26,11 +26,13 @@ kodi-repository.chad.parry.org.git#release-latest:repository.chad.parry.org \
         --addon=https://github.com/chadparry/\
 kodi-plugin.program.remote.control.browser.git#release-latest\
 :plugin.program.remote.control.browser
+
+This script has been tested with Python 2.7.6 and Python 3.4.3. It depends on
+the GitPython module.
 """
  
 import argparse
 import collections
-import git
 import hashlib
 import os
 import re
@@ -39,7 +41,13 @@ import sys
 import tempfile
 import threading
 import xml.etree.ElementTree
- 
+
+
+try:
+    import git
+except ImportError:
+    raise RuntimeError('Please install GitPython: pip install gitpython')
+
 
 AddonMetadata = collections.namedtuple(
         'AddonMetadata', ('id', 'version', 'root'))
@@ -178,7 +186,8 @@ def main():
             '--addon',
             action='append',
             default=[],
-            help='REPOSITORY_URL#BRANCH:PATH')
+            metavar='REPOSITORY_URL#BRANCH:PATH',
+            help='Path to find the add-on')
     args = parser.parse_args()
 
     create_repository(args.addon, args.target)
