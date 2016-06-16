@@ -46,6 +46,13 @@ This script has been tested with Python 2.7.6 and Python 3.4.3. It
 depends on the GitPython module.
 """
  
+__author__ = "Chad Parry"
+__contact__ = "github@chad.parry.org"
+__copyright__ = "Copyright 2016 Chad Parry"
+__license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
+__version__ = "1.0.0"
+
+
 import argparse
 import collections
 import hashlib
