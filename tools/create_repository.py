@@ -2,35 +2,48 @@
 r"""
 Create a Kodi add-on repository from add-on sources
 
-This tool extracts Kodi add-ons from their respective locations and copies the
-appropriate files into a Kodi add-on repository. Each add-on is placed in its
-own directory. Each contains the add-on metadata files and a zip archive. In
-addition, the repository catalog "addons.xml" is placed in the repository
-folder.
+This tool extracts Kodi add-ons from their respective locations and
+copies the appropriate files into a Kodi add-on repository. Each add-on
+is placed in its own directory. Each contains the add-on metadata files
+and a zip archive. In addition, the repository catalog "addons.xml" is
+placed in the repository folder.
 
-Each add-on location is either a local path or a URL. If it is a local path,
-it can be to either an add-on folder or an add-on ZIP archive. If it is a URL,
-it should be to a Git repository and it should use the format:
-  REPOSITORY_URL#BRANCH:PATH
-The first segment is the Git URL that would be used to clone the repository,
-(e.g., "https://github.com/chadparry/kodi-repository.chad.parry.org.git").
-That is followed by an optional "#" sign and a branch or tag name, (e.g.
-"release-1.0"). If no branch name is specified, then the default is the
-repository's currently active branch, which is the same default as git-clone.
-Next comes an optional ":" sign and path. The path denotes the location of the
-add-on within the repository. If no path is specified, then the default is ".".
+Each add-on location is either a local path or a URL. If it is a local
+path, it can be to either an add-on folder or an add-on ZIP archive. If
+it is a URL, it should be to a Git repository and it should use the
+format:
+    REPOSITORY_URL#BRANCH:PATH
+The first segment is the Git URL that would be used to clone the
+repository, (e.g.,
+"https://github.com/chadparry/kodi-repository.chad.parry.org.git").
+That is followed by an optional "#" sign and a branch or tag name,
+(e.g. "release-1.0"). If no branch name is specified, then the default
+is the repository's currently active branch, which is the same default
+as git-clone. Next comes an optional ":" sign and path. The path
+denotes the location of the add-on within the repository. If no path is
+specified, then the default is ".".
 
-As an example, here is the command that generates Chad Parry's Repository:
-    ./create_repository.py \
+For example, if you are in the directory that should contain addons.xml
+and you just copied a new version of the only add-on
+"repository.chad.parry.org" to a subdirectory, then you can create or
+update the addons.xml file with this command:
+
+    ./create_repository.py repository.chad.parry.org
+
+As another example, here is the command that generates Chad Parry's
+Repository:
+
+    create_repository.py \
         --target=html/software/kodi/ \
-        https://github.com/chadparry/kodi-repository.chad.parry.org.git\
+        https://github.com/chadparry\
+/kodi-repository.chad.parry.org.git\
 #release-latest:repository.chad.parry.org \
         https://github.com/chadparry\
 /kodi-plugin.program.remote.control.browser.git\
 #release-latest:plugin.program.remote.control.browser
 
-This script has been tested with Python 2.7.6 and Python 3.4.3. It depends on
-the GitPython module.
+This script has been tested with Python 2.7.6 and Python 3.4.3. It
+depends on the GitPython module.
 """
  
 import argparse
@@ -55,7 +68,7 @@ AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
 ADDON_BASENAME = 'addon.xml'
-BASENAMES = (
+METADATA_BASENAMES = (
         ADDON_BASENAME,
         'changelog.txt',
         'icon.png',
@@ -91,7 +104,7 @@ def parse_metadata(metadata_file):
 
 
 def copy_metadata_files(source_folder, addon_target_folder):
-    for basename in BASENAMES:
+    for basename in METADATA_BASENAMES:
         source_path = os.path.join(source_folder, basename)
         if os.path.isfile(source_path):
             shutil.copyfile(
@@ -185,7 +198,7 @@ def fetch_addon_from_zip(addon_location, target_folder):
         # Copy the metadata files.
         if not os.path.isdir(addon_target_folder):
             os.mkdir(addon_target_folder)
-        for basename in BASENAMES:
+        for basename in METADATA_BASENAMES:
             try:
                 source_file = archive.open(os.path.join(root, basename))
             except KeyError:
