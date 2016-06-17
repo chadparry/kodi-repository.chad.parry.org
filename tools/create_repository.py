@@ -73,10 +73,9 @@ WorkerResult = collections.namedtuple(
 AddonWorker = collections.namedtuple('AddonWorker', ('thread', 'result_slot'))
 
 
-ADDON_BASENAME = 'addon.xml'
+INFO_BASENAME = 'addon.xml'
 METADATA_BASENAMES = (
-        ADDON_BASENAME,
-        'changelog.txt',
+        INFO_BASENAME,
         'icon.png',
         'fanart.jpg',
         'LICENSE.txt')
@@ -84,6 +83,13 @@ METADATA_BASENAMES = (
 
 def get_archive_basename(addon_metadata):
     return '{}-{}.zip'.format(addon_metadata.id, addon_metadata.version)
+
+
+def get_metadata_basenames(addon_metadata):
+    return ([(basename, basename) for basename in METADATA_BASENAMES] +
+            [(
+                    'changelog.txt',
+                    'changelog-{}.txt'.format(addon_metadata.version))])
 
 
 def is_url(addon_location):
@@ -109,13 +115,14 @@ def parse_metadata(metadata_file):
     return addon_metadata
 
 
-def copy_metadata_files(source_folder, addon_target_folder):
-    for basename in METADATA_BASENAMES:
-        source_path = os.path.join(source_folder, basename)
+def copy_metadata_files(source_folder, addon_target_folder, addon_metadata):
+    for (source_basename, target_basename) in get_metadata_basenames(
+            addon_metadata):
+        source_path = os.path.join(source_folder, source_basename)
         if os.path.isfile(source_path):
             shutil.copyfile(
                     source_path,
-                    os.path.join(addon_target_folder, basename))
+                    os.path.join(addon_target_folder, target_basename))
 
 
 def fetch_addon_from_git(addon_location, target_folder):
@@ -135,7 +142,7 @@ def fetch_addon_from_git(addon_location, target_folder):
             cloned.git.checkout(clone_branch)
         clone_source_folder = os.path.join(clone_folder, clone_path or '.')
 
-        metadata_path = os.path.join(clone_source_folder, ADDON_BASENAME)
+        metadata_path = os.path.join(clone_source_folder, INFO_BASENAME)
         addon_metadata = parse_metadata(metadata_path)
         addon_target_folder = os.path.join(target_folder, addon_metadata.id)
 
@@ -151,7 +158,8 @@ def fetch_addon_from_git(addon_location, target_folder):
                     prefix='{}/'.format(addon_metadata.id),
                     format='zip')
 
-        copy_metadata_files(clone_source_folder, addon_target_folder)
+        copy_metadata_files(
+                clone_source_folder, addon_target_folder, addon_metadata)
 
         return addon_metadata
     finally:
@@ -160,7 +168,7 @@ def fetch_addon_from_git(addon_location, target_folder):
 
 def fetch_addon_from_folder(raw_addon_location, target_folder):
     addon_location = os.path.expanduser(raw_addon_location)
-    metadata_path = os.path.join(addon_location, ADDON_BASENAME)
+    metadata_path = os.path.join(addon_location, INFO_BASENAME)
     addon_metadata = parse_metadata(metadata_path)
     addon_target_folder = os.path.join(target_folder, addon_metadata.id)
 
@@ -181,7 +189,8 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
                         os.path.join(relative_root, relative_path))
 
     if not os.path.samefile(addon_location, addon_target_folder):
-        copy_metadata_files(addon_location, addon_target_folder)
+        copy_metadata_files(
+                addon_location, addon_target_folder, addon_metadata)
 
     return addon_metadata
 
@@ -199,20 +208,23 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
         if not root:
             raise RuntimeError('Archive should contain a directory')
 
-        metadata_file = archive.open(os.path.join(root, ADDON_BASENAME))
+        metadata_file = archive.open(os.path.join(root, INFO_BASENAME))
         addon_metadata = parse_metadata(metadata_file)
         addon_target_folder = os.path.join(target_folder, addon_metadata.id)
 
         # Copy the metadata files.
         if not os.path.isdir(addon_target_folder):
             os.mkdir(addon_target_folder)
-        for basename in METADATA_BASENAMES:
+        for (source_basename, target_basename) in get_metadata_basenames(
+                addon_metadata):
             try:
-                source_file = archive.open(os.path.join(root, basename))
+                source_file = archive.open(
+                        os.path.join(root, source_basename))
             except KeyError:
                 continue
-            with (open(os.path.join(addon_target_folder, basename), 'wb')
-                    ) as target_file:
+            with open(
+                    os.path.join(addon_target_folder, target_basename),
+                    'wb') as target_file:
                 shutil.copyfileobj(source_file, target_file)
 
     # Copy the archive.
@@ -290,11 +302,11 @@ def create_repository(addon_locations, raw_target_folder):
     for addon_metadata in metadata:
         root.append(addon_metadata.root)
     tree = xml.etree.ElementTree.ElementTree(root)
-    addons_path = os.path.join(target_folder, 'addons.xml')
-    tree.write(addons_path, encoding='utf-8', xml_declaration=True)
+    info_path = os.path.join(target_folder, 'addons.xml')
+    tree.write(info_path, encoding='utf-8', xml_declaration=True)
 
     # Calculate the signature.
-    with open(addons_path, 'rb') as addons:
+    with open(info_path, 'rb') as addons:
         digest = hashlib.md5(addons.read()).hexdigest()
     with open(os.path.join(target_folder, 'addons.xml.md5'), 'w') as sig:
         sig.write(digest)
