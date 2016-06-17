@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<addon id="repository.chad.parry.org" name="Chad Parry's Repository" version="1.0.0" provider-name="Chad Parry">
+<addon id="repository.chad.parry.org" name="Chad Parry's Repository" version="2.0.0" provider-name="Chad Parry">
     <extension point="xbmc.addon.repository" name="Chad Parry's Repository">
-        <info compressed="false">http://chad.parry.org/software/kodi/addons.xml</info>
+        <info compressed="true">http://chad.parry.org/software/kodi/addons.xml.gz</info>
         <checksum>http://chad.parry.org/software/kodi/addons.xml.md5</checksum>
         <datadir zip="true">http://chad.parry.org/software/kodi</datadir>
     </extension>

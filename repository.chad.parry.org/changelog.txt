@@ -1,2 +1,5 @@
+2.0.0
+- Compress addons.xml
+
 1.0.0
 - Launch of repository
