@@ -34,7 +34,7 @@ As another example, here is the command that generates Chad Parry's
 Repository:
 
     create_repository.py \
-        --target=html/software/kodi/ \
+        --datadir=html/software/kodi/ \
         https://github.com/chadparry\
 /kodi-repository.chad.parry.org.git:repository.chad.parry.org \
         https://github.com/chadparry\
@@ -316,7 +316,7 @@ def main():
     parser = argparse.ArgumentParser(
             description='Create a Kodi add-on repository from add-on sources')
     parser.add_argument(
-            '--target',
+            '--datadir',
             default='.',
             help='''Path to create the repository, defaults to the current
                     directory''')
@@ -329,7 +329,7 @@ def main():
                     format REPOSITORY_URL#BRANCH:PATH''')
     args = parser.parse_args()
 
-    create_repository(args.addon, args.target)
+    create_repository(args.addon, args.datadir)
 
 
 if __name__ == "__main__":
