@@ -263,7 +263,8 @@ def get_addon_worker(addon_location, target_folder):
     return AddonWorker(thread, result_slot)
 
 
-def create_repository(addon_locations, raw_target_folder):
+def create_repository(
+        addon_locations, target_folder, info_path, checksum_path):
     # Import git lazily.
     if any(is_url(addon_location) for addon_location in addon_locations):
         try:
@@ -274,7 +275,6 @@ def create_repository(addon_locations, raw_target_folder):
                     'Please install GitPython: pip install gitpython')
 
     # Create the target folder.
-    target_folder = os.path.expanduser(raw_target_folder)
     if not os.path.isdir(target_folder):
         os.mkdir(target_folder)
 
@@ -302,13 +302,12 @@ def create_repository(addon_locations, raw_target_folder):
     for addon_metadata in metadata:
         root.append(addon_metadata.root)
     tree = xml.etree.ElementTree.ElementTree(root)
-    info_path = os.path.join(target_folder, 'addons.xml')
     tree.write(info_path, encoding='utf-8', xml_declaration=True)
 
     # Calculate the signature.
     with open(info_path, 'rb') as addons:
         digest = hashlib.md5(addons.read()).hexdigest()
-    with open(os.path.join(target_folder, 'addons.xml.md5'), 'w') as sig:
+    with open(checksum_path, 'w') as sig:
         sig.write(digest)
 
 
@@ -318,8 +317,13 @@ def main():
     parser.add_argument(
             '--datadir',
             default='.',
-            help='''Path to create the repository, defaults to the current
-                    directory''')
+            help='Path to place the add-ons [current directory]')
+    parser.add_argument(
+            '--info',
+            help='Path for the addons.xml file [DATADIR/addons.xml]')
+    parser.add_argument(
+            '--checksum',
+            help='Path for the addons.xml.md5 file [DATADIR/addons.xml.md5]')
     parser.add_argument(
             'addon',
             nargs='*',
@@ -329,7 +333,12 @@ def main():
                     format REPOSITORY_URL#BRANCH:PATH''')
     args = parser.parse_args()
 
-    create_repository(args.addon, args.datadir)
+    data_path = os.path.expanduser(args.datadir)
+    info_path = (args.info if args.info is not None
+            else os.path.join(data_path, 'addons.xml'))
+    checksum_path = (args.checksum if args.checksum is not None
+            else os.path.join(data_path, 'addons.xml.md5'))
+    create_repository(args.addon, data_path, info_path, checksum_path)
 
 
 if __name__ == "__main__":
