@@ -159,7 +159,8 @@ def fetch_addon_from_git(addon_location, target_folder):
         shutil.rmtree(clone_folder, ignore_errors=False)
 
 
-def fetch_addon_from_folder(addon_location, target_folder):
+def fetch_addon_from_folder(raw_addon_location, target_folder):
+    addon_location = os.path.expanduser(raw_addon_location)
     metadata_path = os.path.join(addon_location, ADDON_BASENAME)
     addon_metadata = parse_metadata(metadata_path)
     addon_target_folder = os.path.join(target_folder, addon_metadata.id)
@@ -186,7 +187,8 @@ def fetch_addon_from_folder(addon_location, target_folder):
     return addon_metadata
 
 
-def fetch_addon_from_zip(addon_location, target_folder):
+def fetch_addon_from_zip(raw_addon_location, target_folder):
+    addon_location = os.path.expanduser(raw_addon_location)
     with zipfile.ZipFile(
             addon_location, compression=zipfile.ZIP_DEFLATED) as archive:
         # Find out the name of the archive's root folder.
@@ -250,7 +252,7 @@ def get_addon_worker(addon_location, target_folder):
     return AddonWorker(thread, result_slot)
 
 
-def create_repository(addon_locations, target_folder):
+def create_repository(addon_locations, raw_target_folder):
     # Import git lazily.
     if any(is_url(addon_location) for addon_location in addon_locations):
         try:
@@ -261,8 +263,9 @@ def create_repository(addon_locations, target_folder):
                     'Please install GitPython: pip install gitpython')
 
     # Create the target folder.
+    target_folder = os.path.expanduser(raw_target_folder)
     if not os.path.isdir(target_folder):
-        os.makedirs(target_folder)
+        os.mkdir(target_folder)
 
     # Fetch all the add-on sources in parallel.
     workers = [get_addon_worker(addon_location, target_folder)
