@@ -34,7 +34,8 @@ As another example, here is the command that generates Chad Parry's
 Repository:
 
     create_repository.py \
-        --datadir=html/software/kodi/ \
+        --datadir=~/html/software/kodi \
+        --compressed \
         https://github.com/chadparry\
 /kodi-repository.chad.parry.org.git:repository.chad.parry.org \
         https://github.com/chadparry\
@@ -49,16 +50,17 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 import argparse
 import collections
+import gzip
 import hashlib
+import io
 import os
 import re
 import shutil
-import six
 import sys
 import tempfile
 import threading
@@ -93,7 +95,7 @@ def get_metadata_basenames(addon_metadata):
 
 
 def is_url(addon_location):
-    return bool(six.moves.urllib.parse.urlparse(addon_location).scheme)
+    return bool(re.match('[A-Za-z0-9+.-]+://.', addon_location))
 
 
 def parse_metadata(metadata_file):
@@ -263,7 +265,12 @@ def get_addon_worker(addon_location, target_folder):
     return AddonWorker(thread, result_slot)
 
 
-def create_repository(addon_locations, raw_target_folder):
+def create_repository(
+        addon_locations,
+        target_folder,
+        info_path,
+        checksum_path,
+        is_compressed):
     # Import git lazily.
     if any(is_url(addon_location) for addon_location in addon_locations):
         try:
@@ -274,7 +281,6 @@ def create_repository(addon_locations, raw_target_folder):
                     'Please install GitPython: pip install gitpython')
 
     # Create the target folder.
-    target_folder = os.path.expanduser(raw_target_folder)
     if not os.path.isdir(target_folder):
         os.mkdir(target_folder)
 
@@ -302,13 +308,20 @@ def create_repository(addon_locations, raw_target_folder):
     for addon_metadata in metadata:
         root.append(addon_metadata.root)
     tree = xml.etree.ElementTree.ElementTree(root)
-    info_path = os.path.join(target_folder, 'addons.xml')
-    tree.write(info_path, encoding='utf-8', xml_declaration=True)
+    with io.BytesIO() as info_file:
+        tree.write(info_file, encoding='utf-8', xml_declaration=True)
+        info_contents = info_file.getvalue()
+
+    if is_compressed:
+        info_file = gzip.open(info_path, 'wb')
+    else:
+        info_file = open(info_path, 'wb')
+    with info_file:
+        info_file.write(info_contents)
 
     # Calculate the signature.
-    with open(info_path, 'rb') as addons:
-        digest = hashlib.md5(addons.read()).hexdigest()
-    with open(os.path.join(target_folder, 'addons.xml.md5'), 'w') as sig:
+    digest = hashlib.md5(info_contents).hexdigest()
+    with open(checksum_path, 'w') as sig:
         sig.write(digest)
 
 
@@ -317,9 +330,23 @@ def main():
             description='Create a Kodi add-on repository from add-on sources')
     parser.add_argument(
             '--datadir',
+            '-d',
             default='.',
-            help='''Path to create the repository, defaults to the current
-                    directory''')
+            help='Path to place the add-ons [current directory]')
+    parser.add_argument(
+            '--info',
+            '-i',
+            help='''Path for the addons.xml file [DATADIR/addons.xml or
+                    DATADIR/addons.xml.gz if compressed]''')
+    parser.add_argument(
+            '--checksum',
+            '-c',
+            help='Path for the addons.xml.md5 file [DATADIR/addons.xml.md5]')
+    parser.add_argument(
+            '--compressed',
+            '-z',
+            action='store_true',
+            help='Compress addons.xml with gzip')
     parser.add_argument(
             'addon',
             nargs='*',
@@ -329,7 +356,20 @@ def main():
                     format REPOSITORY_URL#BRANCH:PATH''')
     args = parser.parse_args()
 
-    create_repository(args.addon, args.datadir)
+    data_path = os.path.expanduser(args.datadir)
+    if args.info is None:
+        if args.compressed:
+            info_basename = 'addons.xml.gz'
+        else:
+            info_basename = 'addons.xml'
+        info_path = os.path.join(data_path, info_basename)
+    else:
+        info_path = args.info
+
+    checksum_path = (args.checksum if args.checksum is not None
+            else os.path.join(data_path, 'addons.xml.md5'))
+    create_repository(
+            args.addon, data_path, info_path, checksum_path, args.compressed)
 
 
 if __name__ == "__main__":
