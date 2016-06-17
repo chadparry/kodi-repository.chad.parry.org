@@ -58,7 +58,6 @@ import hashlib
 import os
 import re
 import shutil
-import six
 import sys
 import tempfile
 import threading
@@ -93,7 +92,7 @@ def get_metadata_basenames(addon_metadata):
 
 
 def is_url(addon_location):
-    return bool(six.moves.urllib.parse.urlparse(addon_location).scheme)
+    return bool(re.match('[A-Za-z0-9+.-]+://.', addon_location))
 
 
 def parse_metadata(metadata_file):
