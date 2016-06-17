@@ -34,7 +34,7 @@ As another example, here is the command that generates Chad Parry's
 Repository:
 
     create_repository.py \
-        --datadir=html/software/kodi/ \
+        --datadir=~/html/software/kodi \
         https://github.com/chadparry\
 /kodi-repository.chad.parry.org.git:repository.chad.parry.org \
         https://github.com/chadparry\
