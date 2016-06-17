@@ -36,11 +36,10 @@ Repository:
     create_repository.py \
         --target=html/software/kodi/ \
         https://github.com/chadparry\
-/kodi-repository.chad.parry.org.git\
-#release-latest:repository.chad.parry.org \
+/kodi-repository.chad.parry.org.git:repository.chad.parry.org \
         https://github.com/chadparry\
 /kodi-plugin.program.remote.control.browser.git\
-#release-latest:plugin.program.remote.control.browser
+:plugin.program.remote.control.browser
 
 This script has been tested with Python 2.7.6 and Python 3.4.3. It
 depends on the GitPython module.
