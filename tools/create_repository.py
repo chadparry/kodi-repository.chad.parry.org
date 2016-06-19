@@ -309,7 +309,7 @@ def create_repository(
         root.append(addon_metadata.root)
     tree = xml.etree.ElementTree.ElementTree(root)
     with io.BytesIO() as info_file:
-        tree.write(info_file, encoding='utf-8', xml_declaration=True)
+        tree.write(info_file, encoding='UTF-8', xml_declaration=True)
         info_contents = info_file.getvalue()
 
     if is_compressed:
