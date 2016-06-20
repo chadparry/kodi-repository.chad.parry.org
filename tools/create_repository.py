@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 
 import argparse
@@ -309,7 +309,7 @@ def create_repository(
         root.append(addon_metadata.root)
     tree = xml.etree.ElementTree.ElementTree(root)
     with io.BytesIO() as info_file:
-        tree.write(info_file, encoding='utf-8', xml_declaration=True)
+        tree.write(info_file, encoding='UTF-8', xml_declaration=True)
         info_contents = info_file.getvalue()
 
     if is_compressed:
