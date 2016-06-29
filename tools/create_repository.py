@@ -111,7 +111,7 @@ def parse_metadata(metadata_file):
             re.search('[^a-z0-9._-]', addon_metadata.id)):
         raise RuntimeError('Invalid addon ID: ' + str(addon_metadata.id))
     if (addon_metadata.version is None or
-            not re.match(r'\d+\.\d+\.\d+', addon_metadata.version)):
+            not re.match(r'\d+\.\d+\.\d+$', addon_metadata.version)):
         raise RuntimeError(
             'Invalid addon verson: ' + str(addon_metadata.version))
     return addon_metadata
