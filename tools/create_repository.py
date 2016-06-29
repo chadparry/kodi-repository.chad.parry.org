@@ -365,10 +365,10 @@ def main():
             info_basename = 'addons.xml'
         info_path = os.path.join(data_path, info_basename)
     else:
-        info_path = args.info
+        info_path = os.path.expanduser(args.info)
 
     checksum_path = (
-        args.checksum if args.checksum is not None
+        os.path.expanduser(args.checksum) if args.checksum is not None
         else os.path.join(data_path, 'addons.xml.md5'))
     create_repository(
         args.addon, data_path, info_path, checksum_path, args.compressed)
