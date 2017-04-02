@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 
 
 import argparse
