@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 
 
 import argparse
@@ -117,6 +117,16 @@ def parse_metadata(metadata_file):
     return addon_metadata
 
 
+def generate_checksum(archive_path):
+    checksum_path = '{}.md5'.format(archive_path)
+    checksum = hashlib.md5()
+    with open(archive_path, 'rb') as archive_contents:
+        for chunk in iter(lambda: archive_contents.read(4096), b''):
+            checksum.update(chunk)
+    with open(checksum_path, 'w') as sig:
+        sig.write(checksum.hexdigest())
+
+
 def copy_metadata_files(source_folder, addon_target_folder, addon_metadata):
     for (source_basename, target_basename) in get_metadata_basenames(
             addon_metadata):
@@ -159,6 +169,7 @@ def fetch_addon_from_git(addon_location, target_folder):
                 treeish='HEAD:{}'.format(clone_path),
                 prefix='{}/'.format(addon_metadata.id),
                 format='zip')
+        generate_checksum(archive_path)
 
         copy_metadata_files(
             clone_source_folder, addon_target_folder, addon_metadata)
@@ -189,6 +200,7 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
                 archive.write(
                     os.path.join(root, relative_path),
                     os.path.join(relative_root, relative_path))
+    generate_checksum(archive_path)
 
     if not os.path.samefile(addon_location, addon_target_folder):
         copy_metadata_files(
@@ -236,6 +248,7 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
             os.path.dirname(addon_location), addon_target_folder) or
             os.path.basename(addon_location) != archive_basename):
         shutil.copyfile(addon_location, archive_path)
+    generate_checksum(archive_path)
 
     return addon_metadata
 
