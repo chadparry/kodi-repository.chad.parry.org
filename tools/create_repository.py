@@ -48,9 +48,9 @@ depends on the GitPython module.
 
 __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
-__copyright__ = "Copyright 2016 Chad Parry"
+__copyright__ = "Copyright 2016-2017 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 
 import argparse
@@ -143,7 +143,8 @@ def fetch_addon_from_git(addon_location, target_folder):
     match = re.match(
         '((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
         addon_location)
-    (clone_repo, clone_branch, clone_path) = match.group(1, 2, 3)
+    (clone_repo, clone_branch, clone_path_option) = match.group(1, 2, 3)
+    clone_path = './' if clone_path_option is None else clone_path_option
 
     # Create a temporary folder for the git clone.
     clone_folder = tempfile.mkdtemp('repo-')
@@ -152,7 +153,7 @@ def fetch_addon_from_git(addon_location, target_folder):
         cloned = git.Repo.clone_from(clone_repo, clone_folder)
         if clone_branch is not None:
             cloned.git.checkout(clone_branch)
-        clone_source_folder = os.path.join(clone_folder, clone_path or '.')
+        clone_source_folder = os.path.join(clone_folder, clone_path)
 
         metadata_path = os.path.join(clone_source_folder, INFO_BASENAME)
         addon_metadata = parse_metadata(metadata_path)
