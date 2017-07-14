@@ -124,8 +124,7 @@ def generate_checksum(archive_path):
         for chunk in iter(lambda: archive_contents.read(4096), b''):
             checksum.update(chunk)
     with open(checksum_path, 'w') as sig:
-        sig.write(checksum.hexdigest())
-        sig.write("  "+os.path.basename(archive_path))
+        sig.write('{} *{}'.format(checksum.hexdigest(), os.path.basename(archive_path)))
 
 
 def copy_metadata_files(source_folder, addon_target_folder, addon_metadata):
