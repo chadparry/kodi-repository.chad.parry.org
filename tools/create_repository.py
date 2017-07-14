@@ -336,10 +336,7 @@ def create_repository(
         info_file.write(info_contents)
 
     # Calculate the signature.
-    digest = hashlib.md5(info_contents).hexdigest()
-    with open(checksum_path, 'w') as sig:
-        sig.write(digest)
-
+    generate_checksum(info_path)
 
 def main():
     parser = argparse.ArgumentParser(
