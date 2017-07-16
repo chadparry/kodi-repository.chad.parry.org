@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016-2017 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "1.3.1"
+__version__ = "2.0.0"
 
 
 import argparse
@@ -100,7 +100,10 @@ def is_url(addon_location):
 
 def parse_metadata(metadata_file):
     # Parse the addon.xml metadata.
-    tree = xml.etree.ElementTree.parse(metadata_file)
+    try:
+        tree = xml.etree.ElementTree.parse(metadata_file)
+    except IOError:
+        raise RuntimeError('Cannot open addon metadata: {}'.format(metadata_file))
     root = tree.getroot()
     addon_metadata = AddonMetadata(
         root.get('id'),
@@ -109,22 +112,30 @@ def parse_metadata(metadata_file):
     # Validate the add-on ID.
     if (addon_metadata.id is None or
             re.search('[^a-z0-9._-]', addon_metadata.id)):
-        raise RuntimeError('Invalid addon ID: ' + str(addon_metadata.id))
+        raise RuntimeError('Invalid addon ID: {}'.format(addon_metadata.id))
     if (addon_metadata.version is None or
             not re.match(r'\d+\.\d+\.\d+$', addon_metadata.version)):
         raise RuntimeError(
-            'Invalid addon verson: ' + str(addon_metadata.version))
+            'Invalid addon verson: {}'.format(addon_metadata.version))
     return addon_metadata
 
 
-def generate_checksum(archive_path):
-    checksum_path = '{}.md5'.format(archive_path)
+def generate_checksum(archive_path, is_binary=True, checksum_path_opt=None):
+    checksum_path = ('{}.md5'.format(archive_path)
+        if checksum_path_opt is None else checksum_path_opt)
+    checksum_dirname = os.path.dirname(checksum_path)
+    archive_relpath = os.path.relpath(archive_path, checksum_dirname)
+
     checksum = hashlib.md5()
     with open(archive_path, 'rb') as archive_contents:
-        for chunk in iter(lambda: archive_contents.read(4096), b''):
+        for chunk in iter(lambda: archive_contents.read(2**12), b''):
             checksum.update(chunk)
-    with open(checksum_path, 'w') as sig:
-        sig.write(checksum.hexdigest())
+    digest = checksum.hexdigest()
+
+    binary_marker = '*' if is_binary else ' '
+    # Force a UNIX line ending, like the md5sum utility.
+    with io.open(checksum_path, 'w', newline='\n') as sig:
+        sig.write(u'{} {}{}\n'.format(digest, binary_marker, archive_relpath))
 
 
 def copy_metadata_files(source_folder, addon_target_folder, addon_metadata):
@@ -147,7 +158,7 @@ def fetch_addon_from_git(addon_location, target_folder):
     clone_path = './' if clone_path_option is None else clone_path_option
 
     # Create a temporary folder for the git clone.
-    clone_folder = tempfile.mkdtemp('repo-')
+    clone_folder = tempfile.mkdtemp('-repo')
     try:
         # Check out the sources.
         cloned = git.Repo.clone_from(clone_repo, clone_folder)
@@ -266,7 +277,7 @@ def fetch_addon(addon_location, target_folder, result_slot):
             addon_metadata = fetch_addon_from_zip(
                 addon_location, target_folder)
         else:
-            raise RuntimeError('Path not found: ' + addon_location)
+            raise RuntimeError('Path not found: {}'.format(addon_location))
         result_slot.append(WorkerResult(addon_metadata, None))
     except:
         result_slot.append(WorkerResult(None, sys.exc_info()))
@@ -323,21 +334,14 @@ def create_repository(
     for addon_metadata in metadata:
         root.append(addon_metadata.root)
     tree = xml.etree.ElementTree.ElementTree(root)
-    with io.BytesIO() as info_file:
-        tree.write(info_file, encoding='UTF-8', xml_declaration=True)
-        info_contents = info_file.getvalue()
-
     if is_compressed:
         info_file = gzip.open(info_path, 'wb')
     else:
         info_file = open(info_path, 'wb')
     with info_file:
-        info_file.write(info_contents)
-
-    # Calculate the signature.
-    digest = hashlib.md5(info_contents).hexdigest()
-    with open(checksum_path, 'w') as sig:
-        sig.write(digest)
+        tree.write(info_file, encoding='UTF-8', xml_declaration=True)
+    is_binary = is_compressed
+    generate_checksum(info_path, is_binary, checksum_path)
 
 
 def main():
@@ -356,7 +360,7 @@ def main():
     parser.add_argument(
         '--checksum',
         '-c',
-        help='Path for the addons.xml.md5 file [DATADIR/addons.xml.md5]')
+        help='Path for the addons.xml.md5 file [INFO.md5]')
     parser.add_argument(
         '--compressed',
         '-z',
@@ -383,7 +387,7 @@ def main():
 
     checksum_path = (
         os.path.expanduser(args.checksum) if args.checksum is not None
-        else os.path.join(data_path, 'addons.xml.md5'))
+        else '{}.md5'.format(info_path))
     create_repository(
         args.addon, data_path, info_path, checksum_path, args.compressed)
 
