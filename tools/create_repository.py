@@ -124,7 +124,7 @@ def generate_checksum(archive_path):
         for chunk in iter(lambda: archive_contents.read(4096), b''):
             checksum.update(chunk)
     with open(checksum_path, 'w') as sig:
-        sig.write(checksum.hexdigest())
+        sig.write('{} *{}'.format(checksum.hexdigest(), os.path.basename(archive_path)))
 
 
 def copy_metadata_files(source_folder, addon_target_folder, addon_metadata):
@@ -335,10 +335,7 @@ def create_repository(
         info_file.write(info_contents)
 
     # Calculate the signature.
-    digest = hashlib.md5(info_contents).hexdigest()
-    with open(checksum_path, 'w') as sig:
-        sig.write(digest)
-
+    generate_checksum(info_path)
 
 def main():
     parser = argparse.ArgumentParser(
