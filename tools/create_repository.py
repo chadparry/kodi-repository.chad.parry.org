@@ -64,6 +64,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import urlparse
 import xml.etree.ElementTree
 import zipfile
 
@@ -232,8 +233,6 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
         if len(roots) != 1:
             raise RuntimeError('Archive should contain one directory')
         root = next(iter(roots))
-        if not root:
-            raise RuntimeError('Archive should contain a directory')
 
         metadata_file = archive.open(os.path.join(root, INFO_BASENAME))
         addon_metadata = parse_metadata(metadata_file)
