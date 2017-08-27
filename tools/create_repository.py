@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016-2017 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 
 import argparse
@@ -64,6 +64,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import urlparse
 import xml.etree.ElementTree
 import zipfile
 
@@ -114,7 +115,10 @@ def parse_metadata(metadata_file):
             re.search('[^a-z0-9._-]', addon_metadata.id)):
         raise RuntimeError('Invalid addon ID: {}'.format(addon_metadata.id))
     if (addon_metadata.version is None or
-            not re.match(r'\d+\.\d+\.\d+$', addon_metadata.version)):
+            not re.match(
+                # The specification for version numbers is at http://semver.org/.
+                r'(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*)){2}(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\Z',
+                addon_metadata.version)):
         raise RuntimeError(
             'Invalid addon verson: {}'.format(addon_metadata.version))
     return addon_metadata
@@ -232,8 +236,6 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
         if len(roots) != 1:
             raise RuntimeError('Archive should contain one directory')
         root = next(iter(roots))
-        if not root:
-            raise RuntimeError('Archive should contain a directory')
 
         metadata_file = archive.open(os.path.join(root, INFO_BASENAME))
         addon_metadata = parse_metadata(metadata_file)
