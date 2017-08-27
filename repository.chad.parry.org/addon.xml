@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="repository.chad.parry.org" name="Chad Parry's Repository" version="3.0.0" provider-name="Chad Parry">
+<addon id="repository.chad.parry.org" name="Chad Parry's Repository" version="3.0.1" provider-name="Chad Parry">
     <extension point="xbmc.addon.repository" name="Chad Parry's Repository">
         <info compressed="true">http://chad.parry.org/software/kodi/addons.xml.gz</info>
         <checksum>http://chad.parry.org/software/kodi/addons.xml.gz.md5</checksum>
@@ -9,6 +9,8 @@
         <summary>Chad Parry's Repository</summary>
         <description>A repository of add-ons that Chad Parry developed for a personal Kodi system</description>
         <disclaimer></disclaimer>
+        <news>3.0.0
+- Change checksum file name</news>
         <platform>all</platform>
         <language></language>
         <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
