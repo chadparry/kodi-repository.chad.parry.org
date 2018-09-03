@@ -64,7 +64,7 @@ import shutil
 import sys
 import tempfile
 import threading
-import urlparse
+from urllib.parse import urljoin
 import xml.etree.ElementTree
 import zipfile
 
