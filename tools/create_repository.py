@@ -64,7 +64,6 @@ import shutil
 import sys
 import tempfile
 import threading
-import urlparse
 import xml.etree.ElementTree
 import zipfile
 
