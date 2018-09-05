@@ -48,9 +48,9 @@ depends on the GitPython module.
 
 __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
-__copyright__ = "Copyright 2016-2017 Chad Parry"
+__copyright__ = "Copyright 2016-2018 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 
 
 import argparse
@@ -64,7 +64,6 @@ import shutil
 import sys
 import tempfile
 import threading
-import urlparse
 import xml.etree.ElementTree
 import zipfile
 
