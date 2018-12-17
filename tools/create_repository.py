@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016-2018 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.2.1"
+__version__ = "2.3.0"
 
 
 import argparse
@@ -299,7 +299,8 @@ def create_repository(
         target_folder,
         info_path,
         checksum_path,
-        is_compressed):
+        is_compressed,
+        no_parallel):
     # Import git lazily.
     if any(is_url(addon_location) for addon_location in addon_locations):
         try:
@@ -317,10 +318,14 @@ def create_repository(
     workers = [
         get_addon_worker(addon_location, target_folder)
         for addon_location in addon_locations]
-    for worker in workers:
-        worker.thread.start()
-    for worker in workers:
-        worker.thread.join()
+    if no_parallel:
+        for worker in workers:
+            worker.thread.run()
+    else:
+        for worker in workers:
+            worker.thread.start()
+        for worker in workers:
+            worker.thread.join()
 
     # Collect the results from all the threads.
     metadata = []
@@ -371,6 +376,11 @@ def main():
         action='store_true',
         help='Compress addons.xml with gzip')
     parser.add_argument(
+        '--no-parallel',
+        '-n',
+        action='store_true',
+        help='Build add-on sources serially')
+    parser.add_argument(
         'addon',
         nargs='*',
         metavar='ADDON',
@@ -393,7 +403,7 @@ def main():
         os.path.expanduser(args.checksum) if args.checksum is not None
         else '{}.md5'.format(info_path))
     create_repository(
-        args.addon, data_path, info_path, checksum_path, args.compressed)
+        args.addon, data_path, info_path, checksum_path, args.compressed, args.no_parallel)
 
 
 if __name__ == "__main__":
