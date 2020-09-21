@@ -48,19 +48,21 @@ depends on the GitPython module.
 
 __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
-__copyright__ = "Copyright 2016-2018 Chad Parry"
+__copyright__ = "Copyright 2016-2020 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.3.0"
+__version__ = "2.3.1"
 
 
 import argparse
 import collections
+import errno
 import gzip
 import hashlib
 import io
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 import threading
@@ -154,6 +156,16 @@ def copy_metadata_files(source_folder, addon_target_folder, addon_metadata):
                 os.path.join(addon_target_folder, target_basename))
 
 
+def on_remove_error(function, path, excinfo):
+    exc_info_value = excinfo[1]
+    if (hasattr(exc_info_value, 'errno') and
+            exc_info_value.errno == errno.EACCES):
+        os.chmod(path, stat.S_IWUSR)
+        function(path)
+    else:
+        raise
+
+
 def fetch_addon_from_git(addon_location, target_folder):
     # Parse the format "REPOSITORY_URL#BRANCH:PATH". The colon is a delimiter
     # unless it looks more like a scheme, (e.g., "http://").
@@ -194,7 +206,10 @@ def fetch_addon_from_git(addon_location, target_folder):
 
         return addon_metadata
     finally:
-        shutil.rmtree(clone_folder, ignore_errors=False)
+        shutil.rmtree(
+            clone_folder,
+            ignore_errors=False,
+            onerror=on_remove_error)
 
 
 def fetch_addon_from_folder(raw_addon_location, target_folder):
@@ -379,7 +394,7 @@ def main():
         '--no-parallel',
         '-n',
         action='store_true',
-        help='Build add-on sources serially')
+        help='Build add-on sources serially, which also makes error diagnosis easier')
     parser.add_argument(
         'addon',
         nargs='*',
