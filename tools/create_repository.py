@@ -275,8 +275,8 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
     # Copy the archive.
     archive_basename = get_archive_basename(addon_metadata)
     archive_path = os.path.join(addon_target_folder, archive_basename)
-    if (not os.path.samefile(
-            os.path.dirname(addon_location), addon_target_folder) or
+    addon_source_folder = os.path.dirname(addon_location) or '.'
+    if (not os.path.samefile(addon_source_folder, addon_target_folder) or
             os.path.basename(addon_location) != archive_basename):
         shutil.copyfile(addon_location, archive_path)
     generate_checksum(archive_path)
