@@ -248,7 +248,7 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
             addon_location, compression=zipfile.ZIP_DEFLATED) as archive:
         # Find out the name of the archive's root folder.
         roots = frozenset(
-            next(iter(path.split(os.path.sep)), '')
+            next(iter(path.split('/')), '')
             for path in archive.namelist())
         if len(roots) != 1:
             raise RuntimeError('Archive should contain one directory')
