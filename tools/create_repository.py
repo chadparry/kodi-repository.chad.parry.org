@@ -42,7 +42,7 @@ Repository:
 /kodi-plugin.program.remote.control.browser.git\
 :plugin.program.remote.control.browser
 
-This script has been tested with Python 2.7.6 and Python 3.4.3. It
+This script has been tested with Python 2.7.10 and Python 3.6.5. It
 depends on the GitPython module.
 """
 
