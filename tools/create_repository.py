@@ -42,15 +42,15 @@ Repository:
 /kodi-plugin.program.remote.control.browser.git\
 :plugin.program.remote.control.browser
 
-This script has been tested with Python 2.7.6 and Python 3.4.3. It
+This script has been tested with Python 2.7.10 and Python 3.6.5. It
 depends on the GitPython module.
 """
 
 __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
-__copyright__ = "Copyright 2016-2020 Chad Parry"
+__copyright__ = "Copyright 2016-2021 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.3.1"
+__version__ = "2.3.2"
 
 
 import argparse
@@ -248,7 +248,7 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
             addon_location, compression=zipfile.ZIP_DEFLATED) as archive:
         # Find out the name of the archive's root folder.
         roots = frozenset(
-            next(iter(path.split(os.path.sep)), '')
+            next(iter(path.split('/')), '')
             for path in archive.namelist())
         if len(roots) != 1:
             raise RuntimeError('Archive should contain one directory')
@@ -275,8 +275,8 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
     # Copy the archive.
     archive_basename = get_archive_basename(addon_metadata)
     archive_path = os.path.join(addon_target_folder, archive_basename)
-    if (not os.path.samefile(
-            os.path.dirname(addon_location), addon_target_folder) or
+    addon_source_folder = os.path.dirname(addon_location) or '.'
+    if (not os.path.samefile(addon_source_folder, addon_target_folder) or
             os.path.basename(addon_location) != archive_basename):
         shutil.copyfile(addon_location, archive_path)
     generate_checksum(archive_path)
@@ -284,19 +284,24 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
     return addon_metadata
 
 
-def fetch_addon(addon_location, target_folder, result_slot):
+def fetch_addon(addon_location, target_folder):
+    if is_url(addon_location):
+        addon_metadata = fetch_addon_from_git(
+            addon_location, target_folder)
+    elif os.path.isdir(addon_location):
+        addon_metadata = fetch_addon_from_folder(
+            addon_location, target_folder)
+    elif os.path.isfile(addon_location):
+        addon_metadata = fetch_addon_from_zip(
+            addon_location, target_folder)
+    else:
+        raise RuntimeError('Path not found: {}'.format(addon_location))
+    return addon_metadata
+
+
+def fetch_addon_result(addon_location, target_folder, result_slot):
     try:
-        if is_url(addon_location):
-            addon_metadata = fetch_addon_from_git(
-                addon_location, target_folder)
-        elif os.path.isdir(addon_location):
-            addon_metadata = fetch_addon_from_folder(
-                addon_location, target_folder)
-        elif os.path.isfile(addon_location):
-            addon_metadata = fetch_addon_from_zip(
-                addon_location, target_folder)
-        else:
-            raise RuntimeError('Path not found: {}'.format(addon_location))
+        addon_metadata = fetch_addon(addon_location, target_folder)
         result_slot.append(WorkerResult(addon_metadata, None))
     except:
         result_slot.append(WorkerResult(None, sys.exc_info()))
@@ -304,7 +309,7 @@ def fetch_addon(addon_location, target_folder, result_slot):
 
 def get_addon_worker(addon_location, target_folder):
     result_slot = []
-    thread = threading.Thread(target=lambda: fetch_addon(
+    thread = threading.Thread(target=lambda: fetch_addon_result(
         addon_location, target_folder, result_slot))
     return AddonWorker(thread, result_slot)
 
@@ -329,29 +334,30 @@ def create_repository(
     if not os.path.isdir(target_folder):
         os.mkdir(target_folder)
 
-    # Fetch all the add-on sources in parallel.
-    workers = [
-        get_addon_worker(addon_location, target_folder)
-        for addon_location in addon_locations]
     if no_parallel:
-        for worker in workers:
-            worker.thread.run()
+        metadata = [
+            fetch_addon(addon_location, target_folder)
+            for addon_location in addon_locations]
     else:
+        # Fetch all the add-on sources in parallel.
+        workers = [
+            get_addon_worker(addon_location, target_folder)
+            for addon_location in addon_locations]
         for worker in workers:
             worker.thread.start()
         for worker in workers:
             worker.thread.join()
 
-    # Collect the results from all the threads.
-    metadata = []
-    for worker in workers:
-        try:
-            result = next(iter(worker.result_slot))
-        except StopIteration:
-            raise RuntimeError('Addon worker did not report result')
-        if result.exc_info is not None:
-            raise result.exc_info[1]
-        metadata.append(result.addon_metadata)
+        # Collect the results from all the threads.
+        metadata = []
+        for worker in workers:
+            try:
+                result = next(iter(worker.result_slot))
+            except StopIteration:
+                raise RuntimeError('Addon worker did not report result')
+            if result.exc_info is not None:
+                raise result.exc_info[1]
+            metadata.append(result.addon_metadata)
 
     # Generate the addons.xml file.
     root = xml.etree.ElementTree.Element('addons')
