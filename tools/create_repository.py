@@ -113,6 +113,14 @@ def get_posix_path(path):
     return path.replace(os.path.sep, '/')
 
 
+def samefile(a, b):
+    try:
+        return os.path.samefile(a, b)
+    except AttributeError:
+        return (os.path.normcase(os.path.normpath(a)) ==
+                os.path.normcase(os.path.normpath(b)))
+
+
 def parse_metadata(metadata_file):
     # Parse the addon.xml metadata.
     try:
@@ -243,7 +251,7 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
                     os.path.join(relative_root, relative_path))
     generate_checksum(archive_path)
 
-    if not os.path.samefile(addon_location, addon_target_folder):
+    if not samefile(addon_location, addon_target_folder):
         copy_metadata_files(
             addon_location, addon_target_folder, addon_metadata)
 
@@ -286,7 +294,7 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
     archive_basename = get_archive_basename(addon_metadata)
     archive_path = os.path.join(addon_target_folder, archive_basename)
     addon_source_folder = os.path.dirname(addon_location) or '.'
-    if (not os.path.samefile(addon_source_folder, addon_target_folder) or
+    if (not samefile(addon_source_folder, addon_target_folder) or
             os.path.basename(addon_location) != archive_basename):
         shutil.copyfile(addon_location, archive_path)
     generate_checksum(archive_path)
