@@ -100,6 +100,10 @@ def is_url(addon_location):
     return bool(re.match('[A-Za-z0-9+.-]+://.', addon_location))
 
 
+def get_posix_path(path):
+    return path.replace(os.path.sep, '/')
+
+
 def parse_metadata(metadata_file):
     # Parse the addon.xml metadata.
     try:
@@ -173,7 +177,7 @@ def fetch_addon_from_git(addon_location, target_folder):
         '((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
         addon_location)
     (clone_repo, clone_branch, clone_path_option) = match.group(1, 2, 3)
-    clone_path = './' if clone_path_option is None else clone_path_option
+    clone_path = os.path.join('.', '') if clone_path_option is None else clone_path_option
 
     # Create a temporary folder for the git clone.
     clone_folder = tempfile.mkdtemp('-repo')
@@ -197,7 +201,7 @@ def fetch_addon_from_git(addon_location, target_folder):
             cloned.archive(
                 archive,
                 treeish='HEAD:{}'.format(clone_path),
-                prefix='{}/'.format(addon_metadata.id),
+                prefix=os.path.join(addon_metadata.id, ''),
                 format='zip')
         generate_checksum(archive_path)
 
@@ -254,7 +258,7 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
             raise RuntimeError('Archive should contain one directory')
         root = next(iter(roots))
 
-        metadata_file = archive.open(os.path.join(root, INFO_BASENAME))
+        metadata_file = archive.open(get_posix_path(os.path.join(root, INFO_BASENAME)))
         addon_metadata = parse_metadata(metadata_file)
         addon_target_folder = os.path.join(target_folder, addon_metadata.id)
 
@@ -264,7 +268,7 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
         for (source_basename, target_basename) in get_metadata_basenames(
                 addon_metadata):
             try:
-                source_file = archive.open(os.path.join(root, source_basename))
+                source_file = archive.open(get_posix_path(os.path.join(root, source_basename)))
             except KeyError:
                 continue
             with open(
