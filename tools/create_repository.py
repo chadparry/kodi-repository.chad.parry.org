@@ -127,7 +127,7 @@ def parse_metadata(metadata_file):
         tree = xml.etree.ElementTree.parse(metadata_file)
     except IOError:
         raise RuntimeError(
-            'Cannot open addon metadata: {}'.format(metadata_file))
+            'Cannot open add-on metadata: {}'.format(metadata_file))
     root = tree.getroot()
     addon_metadata = AddonMetadata(
         root.get('id'),
@@ -136,11 +136,11 @@ def parse_metadata(metadata_file):
     # Validate the add-on ID.
     if (addon_metadata.id is None or
             re.search(r'[^a-z0-9._-]', addon_metadata.id)):
-        raise RuntimeError('Invalid addon ID: {}'.format(addon_metadata.id))
+        raise RuntimeError('Invalid add-on ID: {}'.format(addon_metadata.id))
     if (addon_metadata.version is None or
             not re.match(VERSION_PATTERN, addon_metadata.version)):
         raise RuntimeError(
-            'Invalid addon verson: {}'.format(addon_metadata.version))
+            'Invalid add-on verson: {}'.format(addon_metadata.version))
     return addon_metadata
 
 
@@ -369,7 +369,7 @@ def create_repository(
             try:
                 result = next(iter(worker.result_slot))
             except StopIteration:
-                raise RuntimeError('Addon worker did not report result')
+                raise RuntimeError('Add-on worker did not report result')
             if result.exc_info is not None:
                 raise result.exc_info[1]
             metadata.append(result.addon_metadata)
