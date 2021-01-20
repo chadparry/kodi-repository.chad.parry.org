@@ -338,7 +338,7 @@ def create_repository(
     if not os.path.isdir(target_folder):
         os.mkdir(target_folder)
 
-    if no_parallel:
+    if no_parallel or len(addon_locations) <= 1:
         metadata = [
             fetch_addon(addon_location, target_folder)
             for addon_location in addon_locations]
