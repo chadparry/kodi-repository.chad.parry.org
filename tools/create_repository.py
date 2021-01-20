@@ -314,7 +314,7 @@ def fetch_addon(addon_location, target_folder):
     return addon_metadata
 
 
-def fetch_addon_result(addon_location, target_folder, result_slot):
+def fetch_addon_to_result_slot(addon_location, target_folder, result_slot):
     try:
         addon_metadata = fetch_addon(addon_location, target_folder)
         result_slot.append(WorkerResult(addon_metadata, None))
@@ -324,7 +324,7 @@ def fetch_addon_result(addon_location, target_folder, result_slot):
 
 def get_addon_worker(addon_location, target_folder):
     result_slot = []
-    thread = threading.Thread(target=lambda: fetch_addon_result(
+    thread = threading.Thread(target=lambda: fetch_addon_to_result_slot(
         addon_location, target_folder, result_slot))
     return AddonWorker(thread, result_slot)
 
