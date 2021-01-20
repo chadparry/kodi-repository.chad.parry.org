@@ -50,7 +50,7 @@ __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
 __copyright__ = "Copyright 2016-2021 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.3.4"
+__version__ = "2.3.5"
 
 
 import argparse
@@ -127,7 +127,7 @@ def parse_metadata(metadata_file):
         tree = xml.etree.ElementTree.parse(metadata_file)
     except IOError:
         raise RuntimeError(
-            'Cannot open addon metadata: {}'.format(metadata_file))
+            'Cannot open add-on metadata: {}'.format(metadata_file))
     root = tree.getroot()
     addon_metadata = AddonMetadata(
         root.get('id'),
@@ -136,11 +136,11 @@ def parse_metadata(metadata_file):
     # Validate the add-on ID.
     if (addon_metadata.id is None or
             re.search(r'[^a-z0-9._-]', addon_metadata.id)):
-        raise RuntimeError('Invalid addon ID: {}'.format(addon_metadata.id))
+        raise RuntimeError('Invalid add-on ID: {}'.format(addon_metadata.id))
     if (addon_metadata.version is None or
             not re.match(VERSION_PATTERN, addon_metadata.version)):
         raise RuntimeError(
-            'Invalid addon verson: {}'.format(addon_metadata.version))
+            'Invalid add-on verson: {}'.format(addon_metadata.version))
     return addon_metadata
 
 
@@ -188,7 +188,7 @@ def fetch_addon_from_git(addon_location, target_folder):
     match = re.match(
         r'((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
         addon_location)
-    (clone_repo, clone_branch, clone_path_option) = match.group(1, 2, 3)
+    (clone_repo, clone_branch, clone_path_option) = match.groups()
     clone_path = (os.path.join('.', '')
                   if clone_path_option is None else clone_path_option)
 
@@ -314,7 +314,7 @@ def fetch_addon(addon_location, target_folder):
     return addon_metadata
 
 
-def fetch_addon_result(addon_location, target_folder, result_slot):
+def fetch_addon_to_result_slot(addon_location, target_folder, result_slot):
     try:
         addon_metadata = fetch_addon(addon_location, target_folder)
         result_slot.append(WorkerResult(addon_metadata, None))
@@ -324,7 +324,7 @@ def fetch_addon_result(addon_location, target_folder, result_slot):
 
 def get_addon_worker(addon_location, target_folder):
     result_slot = []
-    thread = threading.Thread(target=lambda: fetch_addon_result(
+    thread = threading.Thread(target=lambda: fetch_addon_to_result_slot(
         addon_location, target_folder, result_slot))
     return AddonWorker(thread, result_slot)
 
@@ -369,7 +369,7 @@ def create_repository(
             try:
                 result = next(iter(worker.result_slot))
             except StopIteration:
-                raise RuntimeError('Addon worker did not report result')
+                raise RuntimeError('Add-on worker did not report result')
             if result.exc_info is not None:
                 raise result.exc_info[1]
             metadata.append(result.addon_metadata)
