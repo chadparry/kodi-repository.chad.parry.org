@@ -188,7 +188,7 @@ def fetch_addon_from_git(addon_location, target_folder):
     match = re.match(
         r'((?:[A-Za-z0-9+.-]+://)?.*?)(?:#([^#]*?))?(?::([^:]*))?$',
         addon_location)
-    (clone_repo, clone_branch, clone_path_option) = match.group(1, 2, 3)
+    (clone_repo, clone_branch, clone_path_option) = match.groups()
     clone_path = (os.path.join('.', '')
                   if clone_path_option is None else clone_path_option)
 
