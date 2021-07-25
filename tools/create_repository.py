@@ -28,7 +28,7 @@ and you just copied a new version of the only add-on
 "repository.chad.parry.org" to a subdirectory, then you can create or
 update the addons.xml file with this command:
 
-    ./create_repository.py repository.chad.parry.org
+    create_repository.py repository.chad.parry.org
 
 As another example, here is the command that generates Chad Parry's
 Repository:
