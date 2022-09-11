@@ -397,8 +397,8 @@ def main():
     parser.add_argument(
         '--datadir',
         '-d',
-        default='.',
-        help='Path to place the add-ons [current directory]')
+        default='output',
+        help='Path to place the add-ons [./output directory]')
     parser.add_argument(
         '--info',
         '-i',
