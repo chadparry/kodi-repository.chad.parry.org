@@ -48,9 +48,9 @@ depends on the GitPython module.
 
 __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
-__copyright__ = "Copyright 2016-2021 Chad Parry"
+__copyright__ = "Copyright 2016-2022 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.3.7"
+__version__ = "2.3.8"
 
 
 import argparse
@@ -242,14 +242,22 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
     archive_path = os.path.join(
         addon_target_folder, get_archive_basename(addon_metadata))
     with zipfile.ZipFile(
-            archive_path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
-        for (root, dirs, files) in os.walk(addon_location):
+        archive_path,
+        'w',
+        compression=zipfile.ZIP_DEFLATED,
+    ) as archive:
+        for (root, _, files) in os.walk(addon_location):
             relative_root = os.path.join(
                 addon_metadata.id, os.path.relpath(root, addon_location))
             archive.write(root, relative_root)
             for relative_path in files:
+                source_path = os.path.realpath(
+                    os.path.join(root, relative_path))
+                if source_path == archive_path:
+                    # Don't include the archive within itself.
+                    continue
                 archive.write(
-                    os.path.join(root, relative_path),
+                    source_path,
                     os.path.join(relative_root, relative_path))
     generate_checksum(archive_path)
 
@@ -263,7 +271,9 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
 def fetch_addon_from_zip(raw_addon_location, target_folder):
     addon_location = os.path.expanduser(raw_addon_location)
     with zipfile.ZipFile(
-            addon_location, compression=zipfile.ZIP_DEFLATED) as archive:
+        addon_location,
+        compression=zipfile.ZIP_DEFLATED,
+    ) as archive:
         # Find out the name of the archive's root folder.
         roots = frozenset(
             next(iter(path.split('/')), '')
@@ -288,8 +298,9 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
             except KeyError:
                 continue
             with open(
-                    os.path.join(addon_target_folder, target_basename),
-                    'wb') as target_file:
+                os.path.join(addon_target_folder, target_basename),
+                'wb',
+            ) as target_file:
                 shutil.copyfileobj(source_file, target_file)
 
     # Copy the archive.
@@ -333,7 +344,7 @@ def get_addon_worker(addon_location, target_folder):
 
 def create_repository(
         addon_locations,
-        target_folder,
+        data_path,
         info_path,
         checksum_path,
         is_compressed,
@@ -348,6 +359,7 @@ def create_repository(
                 'Please install GitPython: pip install gitpython')
 
     # Create the target folder.
+    target_folder = os.path.realpath(data_path)
     if not os.path.isdir(target_folder):
         os.mkdir(target_folder)
 
@@ -437,7 +449,6 @@ def main():
         info_path = os.path.join(data_path, info_basename)
     else:
         info_path = os.path.expanduser(args.info)
-
     checksum_path = (
         os.path.expanduser(args.checksum) if args.checksum is not None
         else '{}.md5'.format(info_path))
