@@ -242,8 +242,11 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
     archive_path = os.path.join(
         addon_target_folder, get_archive_basename(addon_metadata))
     with zipfile.ZipFile(
-            archive_path, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
-        for (root, dirs, files) in os.walk(addon_location):
+        archive_path,
+        'w',
+        compression=zipfile.ZIP_DEFLATED,
+    ) as archive:
+        for (root, _, files) in os.walk(addon_location):
             relative_root = os.path.join(
                 addon_metadata.id, os.path.relpath(root, addon_location))
             archive.write(root, relative_root)
@@ -268,7 +271,9 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
 def fetch_addon_from_zip(raw_addon_location, target_folder):
     addon_location = os.path.expanduser(raw_addon_location)
     with zipfile.ZipFile(
-            addon_location, compression=zipfile.ZIP_DEFLATED) as archive:
+        addon_location,
+        compression=zipfile.ZIP_DEFLATED,
+    ) as archive:
         # Find out the name of the archive's root folder.
         roots = frozenset(
             next(iter(path.split('/')), '')
@@ -293,8 +298,9 @@ def fetch_addon_from_zip(raw_addon_location, target_folder):
             except KeyError:
                 continue
             with open(
-                    os.path.join(addon_target_folder, target_basename),
-                    'wb') as target_file:
+                os.path.join(addon_target_folder, target_basename),
+                'wb',
+            ) as target_file:
                 shutil.copyfileobj(source_file, target_file)
 
     # Copy the archive.
@@ -443,7 +449,6 @@ def main():
         info_path = os.path.join(data_path, info_basename)
     else:
         info_path = os.path.expanduser(args.info)
-
     checksum_path = (
         os.path.expanduser(args.checksum) if args.checksum is not None
         else '{}.md5'.format(info_path))
