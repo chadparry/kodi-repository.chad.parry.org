@@ -48,9 +48,9 @@ depends on the GitPython module.
 
 __author__ = "Chad Parry"
 __contact__ = "github@chad.parry.org"
-__copyright__ = "Copyright 2016-2021 Chad Parry"
+__copyright__ = "Copyright 2016-2022 Chad Parry"
 __license__ = "GNU GENERAL PUBLIC LICENSE. Version 2, June 1991"
-__version__ = "2.3.7"
+__version__ = "2.3.8"
 
 
 import argparse
