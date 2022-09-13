@@ -248,8 +248,13 @@ def fetch_addon_from_folder(raw_addon_location, target_folder):
                 addon_metadata.id, os.path.relpath(root, addon_location))
             archive.write(root, relative_root)
             for relative_path in files:
+                source_path = os.path.realpath(
+                    os.path.join(root, relative_path))
+                if source_path == archive_path:
+                    # Don't include the archive within itself.
+                    continue
                 archive.write(
-                    os.path.join(root, relative_path),
+                    source_path,
                     os.path.join(relative_root, relative_path))
     generate_checksum(archive_path)
 
@@ -333,7 +338,7 @@ def get_addon_worker(addon_location, target_folder):
 
 def create_repository(
         addon_locations,
-        target_folder,
+        data_path,
         info_path,
         checksum_path,
         is_compressed,
@@ -348,6 +353,7 @@ def create_repository(
                 'Please install GitPython: pip install gitpython')
 
     # Create the target folder.
+    target_folder = os.path.realpath(data_path)
     if not os.path.isdir(target_folder):
         os.mkdir(target_folder)
 
